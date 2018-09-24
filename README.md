@@ -44,15 +44,15 @@ Currently the results of unsupervised training haven't reached to our expectatio
 
 ![img1](doc/2.png)
 
-![img2](doc/0002.png)
+![img2](doc/0002.jpg)
 
 ![img3](doc/4.png)
 
-![img4](doc/0004.png)
+![img4](doc/0004.jpg)
 
 ![img5](doc/6.png)
 
-![img6](doc/0006.png)
+![img6](doc/0006.jpg)
 
 # Run training
 python train.py
