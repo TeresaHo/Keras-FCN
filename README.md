@@ -11,7 +11,7 @@ Modify the original `FCN_Vgg_32s` to `FCN_Vgg_8s` and futher use `FCN_Vgg_8s` to
 
 Models are found in [models.py](models.py). Use `FCN_Vgg_8s` to train on augmented Pascal VOC2012 dataset (11355 training images),and validate on Pascal VOC2012 validation set(1449 images), with pixel mean Intersection over Union `mIoU 0.5856`, and pixel accuracy around `0.89`.
 
-![Biker Image](doc/2007_001311.jpg)
+![Biker Image](doc/2007_001311.png)
 
 ![Biker Ground Truth](doc/2007_001311gt.png)
 
@@ -42,7 +42,7 @@ Implementation for [IJCAI2018 paper] (https://www.ijcai.org/proceedings/2018/104
 Use ground truth to first check if it works well. 
 Currently the results of unsupervised training haven't reached to our expectation. Will soon update the code and results without ground truth.
 
-![img1](doc/2.jpg)
+![img1](doc/2.png)
 
 ![img2](doc/0002.png)
 
@@ -56,14 +56,15 @@ Currently the results of unsupervised training haven't reached to our expectatio
 
 # Run training
 python train.py
-
-# Evaluate the performance of the network
-python evaluate.py
 ```
 - Generator.py 
   modified from SegDataGenerator.py for reading the sub-internet dataset images.
 - DataGenerator.py
   just slight changes from SegDataGenerator.py. (import this one if just want to train fcn on pascal VOC dataset)
 ```
+
+# Evaluate the performance of the network
+python evaluate.py
+
 
 
