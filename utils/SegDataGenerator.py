@@ -128,35 +128,16 @@ class SegDirectoryIterator(Iterator):
         self.nb_label_ch = 1
         self.loss_shape = loss_shape
 
-        if (self.label_suffix == '.npy') or (self.label_suffix == 'npy'):
-            self.label_file_format = 'npy'
-        else:
-            self.label_file_format = 'img'
+        
+        self.label_file_format = 'img'
         if target_size:
-            if self.color_mode == 'rgb':
-                if self.data_format == 'channels_last':
-                    self.image_shape = self.target_size + (3,)
-                else:
-                    self.image_shape = (3,) + self.target_size
-            else:
-                if self.data_format == 'channels_last':
-                    self.image_shape = self.target_size + (1,)
-                else:
-                    self.image_shape = (1,) + self.target_size
-            if self.data_format == 'channels_last':
-                self.label_shape = self.target_size + (self.nb_label_ch,)
-            else:
-                self.label_shape = (self.nb_label_ch,) + self.target_size
-        elif batch_size != 1:
+            self.image_shape = self.target_size + (3,)
+            self.label_shape = self.target_size + (self.nb_label_ch,)
+            
+        if target_size is None and batch_size != 1:
             raise ValueError(
                 'Batch size must be 1 when target image size is undetermined')
-        else:
-            self.image_shape = None
-            self.label_shape = None
-        if class_mode not in {'sparse', None}:
-            raise ValueError('Invalid class_mode:', class_mode,
-                             '; expected one of '
-                             '"sparse", or None.')
+        
         self.class_mode = class_mode
         if save_to_dir:
             self.palette = None
@@ -188,108 +169,62 @@ class SegDirectoryIterator(Iterator):
             A batch of transformed samples.
         """
         current_batch_size = len(index_array)
+        print("current_batch_size")
+        print(current_batch_size)
 
         # The transformation of images is not under thread lock so it can be
         # done in parallel
         if self.target_size:
             # TODO(ahundt) make dtype properly configurable
             batch_x = np.zeros((current_batch_size,) + self.image_shape)
-            if self.loss_shape is None and self.label_file_format is 'img':
-                batch_y = np.zeros((current_batch_size,) + self.label_shape,
-                                   dtype=int)
-            elif self.loss_shape is None:
-                batch_y = np.zeros((current_batch_size,) + self.label_shape)
-            else:
-                batch_y = np.zeros((current_batch_size,) + self.loss_shape,
-                                   dtype=np.uint8)
+            batch_y = np.zeros((current_batch_size,) + self.label_shape)
+            
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data and labels
         for i, j in enumerate(index_array):
             data_file = self.data_files[j]
             label_file = self.label_files[j]
             img_file_format = 'img'
-            img = load_img(os.path.join(self.data_dir, data_file),
-                           grayscale=grayscale, target_size=None)
-            label_filepath = os.path.join(self.label_dir, label_file)
+            img = load_img(os.path.join(self.data_dir, data_file),target_size=self.target_size)
 
-            if self.label_file_format == 'npy':
-                y = np.load(label_filepath)
-            else:
-                label = Image.open(label_filepath)
-                if self.save_to_dir and self.palette is None:
-                    self.palette = label.palette
+            label_filepath = os.path.join(self.label_dir, label_file)
+            label = Image.open(label_filepath)
+            label = label.resize((384,384), Image.ANTIALIAS)
+            if self.save_to_dir and self.palette is None:
+                self.palette = label.palette
 
             # do padding
             if self.target_size:
                 if self.crop_mode != 'none':
                     x = img_to_array(img, data_format=self.data_format)
-                    if self.label_file_format is not 'npy':
-                        y = img_to_array(
-                            label, data_format=self.data_format).astype(int)
-                    img_w, img_h = img.size
-                    if self.pad_size:
-                        pad_w = max(self.pad_size[1] - img_w, 0)
-                        pad_h = max(self.pad_size[0] - img_h, 0)
-                    else:
-                        pad_w = max(self.target_size[1] - img_w, 0)
-                        pad_h = max(self.target_size[0] - img_h, 0)
-                    if self.data_format == 'channels_first':
-                        x = np.lib.pad(x, ((0, 0), (pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2)), 'constant', constant_values=0.)
-                        y = np.lib.pad(y, ((0, 0), (pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2)),
-                                       'constant', constant_values=self.label_cval)
-                    elif self.data_format == 'channels_last':
-                        x = np.lib.pad(x, ((pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2), (0, 0)), 'constant', constant_values=0.)
-                        y = np.lib.pad(y, ((pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2), (0, 0)), 'constant', constant_values=self.label_cval)
-                else:
-                    x = img_to_array(img.resize((self.target_size[1], self.target_size[0]),
-                                                Image.BILINEAR),
-                                     data_format=self.data_format)
-                    if self.label_file_format is not 'npy':
-                        y = img_to_array(label.resize((self.target_size[1], self.target_size[
-                                         0]), Image.NEAREST), data_format=self.data_format).astype(int)
-                    else:
-                        print('ERROR: resize not implemented for label npy file')
+                    y = img_to_array(label, data_format=self.data_format).astype(int)
 
-            if self.target_size is None:
-                batch_x = np.zeros((current_batch_size,) + x.shape)
-                if self.loss_shape is not None:
-                    batch_y = np.zeros((current_batch_size,) + self.loss_shape)
-                else:
-                    batch_y = np.zeros((current_batch_size,) + y.shape)
+                    #img_w, img_h = img.size
+                    
+                    #pad_w = max(self.target_size[1] - img_w, 0)
+                    #pad_h = max(self.target_size[0] - img_h, 0)
+                    
+                    
+                    #x = np.lib.pad(x, ((pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2), (0, 0)), 'constant', constant_values=0.)
+                    #y = np.lib.pad(y, ((pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2), (0, 0)), 'constant', constant_values=self.label_cval)
+                
 
-            x, y = self.seg_data_generator.random_transform(x, y)
-            x = self.seg_data_generator.standardize(x)
+            #x, y = self.seg_data_generator.random_transform(x, y)
+            #x = self.seg_data_generator.standardize(x)
 
             if self.ignore_label:
                 y[np.where(y == self.ignore_label)] = self.classes
 
-            if self.loss_shape is not None:
-                y = np.reshape(y, self.loss_shape)
+            
 
             batch_x[i] = x
             batch_y[i] = y
-        # optionally save augmented images to disk for debugging purposes
-        if self.save_to_dir:
-            for i in range(current_batch_size):
-                img = array_to_img(batch_x[i], self.data_format, scale=True)
-                label = batch_y[i][:, :, 0].astype('uint8')
-                label[np.where(label == self.classes)] = self.ignore_label
-                label = Image.fromarray(label, mode='P')
-                label.palette = self.palette
-                # TODO(ahundt) fix index=i, a hacky workaround since current_index + i is no long available
-                fname = '{prefix}_{index}_{hash}'.format(prefix=self.save_prefix,
-                                                         index=i,
-                                                         hash=np.random.randint(1e4))
-                img.save(os.path.join(self.save_to_dir, 'img_' +
-                                      fname + '.{format}'.format(format=self.save_format)))
-                label.save(os.path.join(self.save_to_dir,
-                                        'label_' + fname + '.png'))
-        # return
+        
+        
         batch_x = preprocess_input(batch_x)
-        if self.class_mode == 'sparse':
-            return batch_x, batch_y
-        else:
-            return batch_x
+        
+        return batch_x, batch_y
+        
 
 
 class SegDataGenerator(object):
@@ -320,6 +255,8 @@ class SegDataGenerator(object):
         if data_format == 'default':
             data_format = K.image_data_format()
         self.__dict__.update(locals())
+        print("self.crop_size")
+        print(self.crop_size)
         self.mean = None
         self.ch_mean = None
         self.std = None
@@ -334,10 +271,7 @@ class SegDataGenerator(object):
             raise Exception('crop_mode should be "none" or "random" or "center" '
                             'Received arg: ', crop_mode)
         self.data_format = data_format
-        if data_format == 'channels_first':
-            self.channel_index = 1
-            self.row_index = 2
-            self.col_index = 3
+        
         if data_format == 'channels_last':
             self.channel_index = 3
             self.row_index = 1
@@ -360,8 +294,8 @@ class SegDataGenerator(object):
                             batch_size=32, shuffle=True, seed=None,
                             save_to_dir=None, save_prefix='', save_format='jpeg',
                             loss_shape=None):
-        if self.crop_mode == 'random' or self.crop_mode == 'center':
-            target_size = self.crop_size
+        #if self.crop_mode == 'random' or self.crop_mode == 'center':
+        target_size = (384,384)
         return SegDirectoryIterator(
             file_path, self,
             data_dir=data_dir, data_suffix=data_suffix,

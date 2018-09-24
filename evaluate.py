@@ -16,6 +16,8 @@ from inference import inference
 
 
 def calculate_iou(model_name, nb_classes, res_dir, label_dir, image_list):
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    res_dir = os.path.join(current_dir, 'save_dir')
     conf_m = zeros((nb_classes, nb_classes), dtype=float)
     total = 0
     # mean_acc = 0.
@@ -53,20 +55,24 @@ def calculate_iou(model_name, nb_classes, res_dir, label_dir, image_list):
 def evaluate(model_name, weight_file, image_size, nb_classes, batch_size, val_file_path, data_dir, label_dir,
           label_suffix='.png',
           data_suffix='.jpg'):
+    #current_dir = os.path.dirname(os.path.realpath(__file__))
+    #save_dir = os.path.join(current_dir, 'Models/'+model_name+'/res/')
+    path_to  = os.path.abspath(os.path.join(os.getcwd(), "../../..","4TB/ccho"))
+    #save_dir = os.path.abspath(os.path.join(path_to, 'Models/'+ model_name+'/res/'))
     current_dir = os.path.dirname(os.path.realpath(__file__))
-    save_dir = os.path.join(current_dir, 'Models/'+model_name+'/res/')
+    save_dir = os.path.join(current_dir, 'save_dir')
     if os.path.exists(save_dir) == False:
         os.mkdir(save_dir)
     fp = open(val_file_path)
     image_list = fp.readlines()
     fp.close()
-
+    """
     start_time = time.time()
     inference(model_name, weight_file, image_size, image_list, data_dir, label_dir, return_results=False, save_dir=save_dir,
               label_suffix=label_suffix, data_suffix=data_suffix)
     duration = time.time() - start_time
     print('{}s used to make predictions.\n'.format(duration))
-
+    """
     start_time = time.time()
     conf_m, IOU, meanIOU = calculate_iou(model_name, nb_classes, save_dir, label_dir, image_list)
     print('IOU: ')
@@ -78,14 +84,14 @@ def evaluate(model_name, weight_file, image_size, nb_classes, batch_size, val_fi
 
 if __name__ == '__main__':
     # model_name = 'Atrous_DenseNet'
-    model_name = 'AtrousFCN_Resnet50_16s'
+    model_name = 'myFCN_Vgg16_8s'
     # model_name = 'DenseNet_FCN'
     weight_file = 'checkpoint_weights.hdf5'
     # weight_file = 'model.hdf5'
     image_size = (512, 512)
     nb_classes = 21
     batch_size = 1
-    dataset = 'VOC2012_BERKELEY'
+    dataset = 'VOC2012'
     if dataset == 'VOC2012_BERKELEY':
         # pascal voc + berkeley semantic contours annotations
         train_file_path = os.path.expanduser('~/.keras/datasets/VOC2012/combined_imageset_train.txt') #Data/VOClarge/VOC2012/ImageSets/Segmentation
@@ -94,12 +100,15 @@ if __name__ == '__main__':
         data_dir        = os.path.expanduser('~/.keras/datasets/VOC2012/VOCdevkit/VOC2012/JPEGImages')
         label_dir       = os.path.expanduser('~/.keras/datasets/VOC2012/combined_annotations')
         label_suffix = '.png'
-    if dataset == 'COCO':
-        train_file_path = os.path.expanduser('~/.keras/datasets/VOC2012/VOCdevkit/VOC2012/ImageSets/Segmentation/train.txt') #Data/VOClarge/VOC2012/ImageSets/Segmentation
+    
+    if dataset == 'VOC2012':
+        train_file_path = os.path.expanduser('/4TB/ccho/VOC2012/ImageSets/Segmentation/train.txt') #Data/VOClarge/VOC2012/ImageSets/Segmentation
         # train_file_path = os.path.expanduser('~/.keras/datasets/oneimage/train.txt') #Data/VOClarge/VOC2012/ImageSets/Segmentation
-        val_file_path   = os.path.expanduser('~/.keras/datasets/VOC2012/VOCdevkit/VOC2012/ImageSets/Segmentation/val.txt')
-        data_dir        = os.path.expanduser('~/.keras/datasets/VOC2012/VOCdevkit/VOC2012/JPEGImages')
-        label_dir       = os.path.expanduser('~/.keras/datasets/VOC2012/VOCdevkit/VOC2012/SegmentationClass')
-        label_suffix = '.npy'
+        val_file_path   = os.path.expanduser('/4TB/ccho/VOC2012/ImageSets/Segmentation/val.txt')
+        data_dir        = os.path.expanduser('/4TB/ccho/VOC2012/JPEGImages')
+        label_dir       = os.path.expanduser('/4TB/ccho/VOC2012/SegmentationClass')
+        data_suffix='.jpg'
+        label_suffix='.png'
+        classes = 21
     evaluate(model_name, weight_file, image_size, nb_classes, batch_size, val_file_path, data_dir, label_dir,
              label_suffix=label_suffix, data_suffix=data_suffix)

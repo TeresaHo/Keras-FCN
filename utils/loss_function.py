@@ -27,5 +27,7 @@ def softmax_sparse_crossentropy_ignoring_last_label(y_true, y_pred):
 def binary_crossentropy_with_logits(ground_truth, predictions):
     return K.mean(K.binary_crossentropy(ground_truth,
                                         predictions,
-                                        from_logits=True),
-                  axis=-1)
+                                        from_logits=True),axis=-1)
+
+def my_softmax_crossentropy(y_true, y_pred):
+    return tf.nn.softmax_cross_entropy_with_logits(logits=y_pred, labels=y_true)
